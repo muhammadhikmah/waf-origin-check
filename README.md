@@ -130,7 +130,3 @@ If you find yourself wanting to point this at a `/22` or larger, that's a sign t
 This tool is intended for authorized security testing — i.e., you have written permission to test the target domain and its infrastructure (a signed scope of work, pentest authorization letter, or you control the infrastructure yourself). Finding a candidate IP with high confidence does **not** by itself mean it's exploitable or that bypassing a WAF/CDN in front of it is authorized — that's a separate question requiring its own justification in your scope and report.
 
 Do not use this tool against systems you don't have explicit authorization to test.
-
-## License
-
-MIT (or your preference — add a LICENSE file before publishing).
