@@ -32,7 +32,7 @@ A **negative control** option lets you fetch the same checks against IPs you kno
 ## Installation
 
 ```bash
-git clone https://github.com/<your-username>/origin-verify.git
+git clone https://github.com/muhammadhikmah/waf-origin-check.git
 cd origin-verify
 pip install aiohttp --break-system-packages   # or use a virtualenv
 ```
