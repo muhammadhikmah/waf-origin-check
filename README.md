@@ -1,5 +1,4 @@
 # waf-origin-check
-# origin-verify
 
 A multi-signal tool for **verifying** candidate origin IPs behind a WAF/CDN during authorized penetration testing engagements.
 
