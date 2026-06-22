@@ -120,3 +120,25 @@ If you find yourself wanting to point this at a `/22` or larger, that's a sign t
 This tool is intended for authorized security testing — i.e., you have written permission to test the target domain and its infrastructure (a signed scope of work, pentest authorization letter, or you control the infrastructure yourself). Finding a candidate IP with high confidence does **not** by itself mean it's exploitable or that bypassing a WAF/CDN in front of it is authorized — that's a separate question requiring its own justification in your scope and report.
 
 Do not use this tool against systems you don't have explicit authorization to test.
+
+MIT License
+
+Copyright (c) 2026 Muhammad Hikmah Husnuzon
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
