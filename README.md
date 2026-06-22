@@ -78,14 +78,18 @@ python3 verify_origin.py --domain example.com --candidates 1.2.3.4 --json > resu
 ### All options
 
 ```
+-h, --help                    Show this help message and exit
+
 --domain DOMAIN              Target domain, no scheme
 --candidates IPs             Comma-separated candidate IPs
---candidates-file FILE        One IP per line
---subnet CIDR                 /24 or smaller only (max 256 hosts)
---control IPs                 Comma-separated negative-control IPs
---concurrency N                Parallel requests (default: 20)
---show-all                    Include unreachable hosts in output
---json                         JSON output instead of text report
+--candidates-file FILE       One IP per line
+--subnet CIDR                /24 or smaller only (max 256 hosts)
+--control IPs                Comma-separated negative-control IPs (recommended)
+--concurrency N              Parallel requests (default: 20)
+--show-all                   Include unreachable hosts in output
+--verdict TYPE               Filter results: likely, possible, unlikely, or all
+--json                       JSON output instead of text report
+--no-banner                  Skip the ASCII banner
 ```
 
 ## Example output
