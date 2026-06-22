@@ -121,6 +121,8 @@ This tool is intended for authorized security testing — i.e., you have written
 
 Do not use this tool against systems you don't have explicit authorization to test.
 
+## LICENSE
+
 MIT License
 
 Copyright (c) 2026 Muhammad Hikmah Husnuzon
