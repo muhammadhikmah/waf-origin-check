@@ -90,20 +90,7 @@ python3 verify_origin.py --domain example.com --candidates 1.2.3.4 --json > resu
 
 ## Example output
 
-```
-======================================================================
-IP: 1.2.3.4  scheme=https
-Verdict: LIKELY ORIGIN  (confidence=92%)
-----------------------------------------------------------------------
-  [✓] tls_cert_match                 weight= 40  SAN=['example.com', 'www.example.com'] CN=example.com
-  [✓] content_structural_similarity  weight= 30  ratio=0.943
-  [✓] header_fingerprint             weight= 15  sim=0.80 headers={'server': 'nginx'}
-  [✗] favicon_hash                   weight= 15  hash=None
-======================================================================
-
-[SUMMARY] 1/2 fetch attempts reached confidence >= 75%.
-    1.2.3.4 (https)  confidence=92%
-```
+<img width="1122" height="526" alt="image" src="https://github.com/user-attachments/assets/28916c81-7e41-4559-a8ad-e29069a0d088" />
 
 ## Methodology
 
