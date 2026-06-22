@@ -32,8 +32,10 @@ A **negative control** option lets you fetch the same checks against IPs you kno
 
 ```bash
 git clone https://github.com/muhammadhikmah/waf-origin-check.git
-cd origin-verify
-pip install aiohttp --break-system-packages   # or use a virtualenv
+cd waf-origin-check
+python3 -m venv venv
+source venv/bin/activate
+pip install aiohttp
 ```
 
 Requires Python 3.9+.
