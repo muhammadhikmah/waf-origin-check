@@ -53,16 +53,19 @@ import json
 import re
 import socket
 import ssl
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from typing import Optional
+from urllib.parse import urlsplit
 
 import aiohttp
 
 TIMEOUT = aiohttp.ClientTimeout(total=10, connect=6)
 UA = "Mozilla/5.0 (compatible; OriginVerify/1.0; pentest-tool)"
 MAX_SUBNET_HOSTS = 256  # hard cap -- equivalent to /24, see docstring note
+FALLBACK_DNS_SERVERS = ("1.1.1.1", "8.8.8.8")
 
 
 # ---------------------------------------------------------------------------
@@ -256,18 +259,22 @@ class CandidateReport:
 # ---------------------------------------------------------------------------
 
 async def fetch_html(session: aiohttp.ClientSession, ip: str, scheme: str,
-                      host: str, path: str = "/") -> FetchResult:
+                      host: str, path: str = "/",
+                      sni_host: Optional[str] = None) -> FetchResult:
     url = f"{scheme}://{ip}{path}"
     headers = {"Host": host, "User-Agent": UA, "Accept": "text/html,*/*"}
     ssl_ctx = False
+    request_kwargs = {}
     if scheme == "https":
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         ssl_ctx = ctx
+        request_kwargs["server_hostname"] = sni_host or host
     try:
         async with session.get(url, headers=headers, timeout=TIMEOUT,
-                                ssl=ssl_ctx, allow_redirects=False) as r:
+                                ssl=ssl_ctx, allow_redirects=False,
+                                **request_kwargs) as r:
             text = await r.text(errors="ignore")
             return FetchResult(ok=True, status=r.status, html=text,
                                 headers=dict(r.headers))
@@ -403,18 +410,21 @@ def header_similarity(base: dict, cand: dict) -> float:
 # ---------------------------------------------------------------------------
 
 async def fetch_favicon_hash(session: aiohttp.ClientSession, ip: str,
-                              scheme: str, host: str) -> Optional[str]:
+                              scheme: str, host: str,
+                              sni_host: Optional[str] = None) -> Optional[str]:
     url = f"{scheme}://{ip}/favicon.ico"
     headers = {"Host": host, "User-Agent": UA}
     ssl_ctx = False
+    request_kwargs = {}
     if scheme == "https":
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         ssl_ctx = ctx
+        request_kwargs["server_hostname"] = sni_host or host
     try:
         async with session.get(url, headers=headers, timeout=TIMEOUT,
-                                ssl=ssl_ctx) as r:
+                                ssl=ssl_ctx, **request_kwargs) as r:
             if r.status != 200:
                 return None
             data = await r.read()
@@ -442,7 +452,9 @@ async def verify_candidate(session: aiohttp.ClientSession, ip: str, domain: str,
                 "http_reachable", False, f"port {port} closed/filtered", weight=0))
             return report
 
-    fetch = await fetch_html(session, ip, scheme, domain)
+    fetch = await fetch_html(session, ip, scheme, domain,
+                             path=base.get("path", "/"),
+                             sni_host=domain)
     report.fetch = fetch
 
     if not fetch.ok or fetch.status is None or fetch.status >= 400:
@@ -476,7 +488,8 @@ async def verify_candidate(session: aiohttp.ClientSession, ip: str, domain: str,
         f"sim={hsim:.2f} headers={cand_fp}", weight=15))
 
     # Signal 4: favicon hash
-    fav = await fetch_favicon_hash(session, ip, scheme, domain)
+    fav = await fetch_favicon_hash(session, ip, scheme, domain,
+                                   sni_host=domain)
     report.favicon_hash = fav
     fav_match = fav is not None and fav == base.get("favicon_hash")
     report.signals.append(SignalScore(
@@ -493,17 +506,86 @@ async def verify_candidate(session: aiohttp.ClientSession, ip: str, domain: str,
     return report
 
 
+def resolve_with_fallback_dns(domain: str) -> Optional[str]:
+    """Resolve a domain via dig when the system resolver is unavailable."""
+    for server in FALLBACK_DNS_SERVERS:
+        try:
+            proc = subprocess.run(
+                ["dig", f"@{server}", domain, "+short"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (FileNotFoundError, subprocess.SubprocessError):
+            continue
+
+        for line in proc.stdout.splitlines():
+            line = line.strip()
+            try:
+                ipaddress.ip_address(line)
+            except ValueError:
+                continue
+            return line
+    return None
+
+
+def same_domain_redirect_path(location: Optional[str], domain: str) -> Optional[str]:
+    if not location:
+        return None
+    parsed = urlsplit(location)
+    if parsed.netloc and parsed.netloc.lower() != domain.lower():
+        return None
+    path = parsed.path or "/"
+    if parsed.query:
+        path += "?" + parsed.query
+    return path
+
+
+async def follow_baseline_redirect_once(session: aiohttp.ClientSession,
+                                        fetch: FetchResult, host: str,
+                                        domain: str, scheme: str) -> tuple:
+    if fetch.ok and fetch.status in {301, 302, 303, 307, 308}:
+        path = same_domain_redirect_path(fetch.headers.get("Location"), domain)
+        if path:
+            redirected = await fetch_html(session, host, scheme, domain,
+                                          path=path, sni_host=domain)
+            if redirected.ok:
+                return redirected, path
+    return fetch, "/"
+
+
 async def get_baseline(session: aiohttp.ClientSession, domain: str) -> dict:
     """Fetch the real domain (via normal DNS) to use as a comparison baseline."""
     fetch = await fetch_html(session, domain, "https", domain)
+    fetch, baseline_path = await follow_baseline_redirect_once(
+        session, fetch, domain, domain, "https")
     if not fetch.ok:
         fetch = await fetch_html(session, domain, "http", domain)
-    fav = await fetch_favicon_hash(session, domain, "https", domain)
+        fetch, baseline_path = await follow_baseline_redirect_once(
+            session, fetch, domain, domain, "http")
+    baseline_host = domain
+    if not fetch.ok:
+        resolved_ip = resolve_with_fallback_dns(domain)
+        if resolved_ip:
+            baseline_host = resolved_ip
+            fetch = await fetch_html(session, resolved_ip, "https", domain,
+                                    sni_host=domain)
+            fetch, baseline_path = await follow_baseline_redirect_once(
+                session, fetch, resolved_ip, domain, "https")
+            if not fetch.ok:
+                fetch = await fetch_html(session, resolved_ip, "http", domain)
+                fetch, baseline_path = await follow_baseline_redirect_once(
+                    session, fetch, resolved_ip, domain, "http")
+
+    fav = await fetch_favicon_hash(session, baseline_host, "https", domain,
+                                   sni_host=domain)
     return {
         "html": fetch.html,
         "headers_fp": header_fingerprint(fetch.headers),
         "favicon_hash": fav,
         "status": fetch.status,
+        "path": baseline_path,
     }
 
 
